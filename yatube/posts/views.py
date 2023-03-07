@@ -30,7 +30,7 @@ def group_posts(request, slug):
     """Вью для отображения страниц с постами конкретной группы"""
     template: str = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
-    post_list = get_list_or_404(Post, group=group)
+    post_list = Post.objects.filter(group=group)
     page_number = request.GET.get('page')
     page_obj = paginate(post_list, page_number)
 
