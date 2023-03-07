@@ -56,10 +56,6 @@ class StaticViewTests(TestCase):
             author=cls.user,
             text='Текст комментария'
         )
-        Follow.objects.create(
-            user=cls.user_2,
-            author=cls.user
-        )
 
     @classmethod
     def tearDownClass(cls):
@@ -75,6 +71,7 @@ class StaticViewTests(TestCase):
         self.authorized_client_2 = Client()
         self.authorized_client_2.force_login(StaticViewTests.user_2)
         cache.clear()
+        Follow.objects.all().delete()
 
     # Проверяем используемые шаблоны
     def test_pages_uses_correct_template(self):
@@ -240,22 +237,30 @@ class StaticViewTests(TestCase):
         подписаться/отписаться на/от авторов
         """
         sub = Follow.objects.filter(
-            user=StaticViewTests.user,
+            user=StaticViewTests.user_2,
             author=StaticViewTests.user
         )
         self.assertFalse(sub.count())
-        self.authorized_client.get(
+        self.authorized_client_2.get(
             reverse(
                 'posts:profile_follow',
                 kwargs={'username': StaticViewTests.user}
             )
         )
+        sub = Follow.objects.filter(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
+        )
         self.assertTrue(sub.count())
-        self.authorized_client.get(
+        self.authorized_client_2.get(
             reverse(
                 'posts:profile_unfollow',
                 kwargs={'username': StaticViewTests.user}
             )
+        )
+        sub = Follow.objects.filter(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
         )
         self.assertFalse(sub.count())
 
@@ -265,6 +270,10 @@ class StaticViewTests(TestCase):
         у подписавшегося на автора пользователя, \
         и не появляется у неподписанного
         """
+        Follow.objects.create(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
+        )
         response = self.authorized_client_2.get(reverse('posts:follow_index'))
         self.assertTrue(response.context.get('page_obj', 0))
         response = self.authorized_client.get(reverse('posts:follow_index'))
