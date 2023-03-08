@@ -36,37 +36,22 @@
           {% csrf_token %}
         
           <div class="form-group row my-3 p-3">
-            <label for="id_text">
-              Текст поста                  
-              <span class="required text-danger" >*</span>                  
-            </label>
-            <textarea name="text" cols="40" rows="10" class="form-control" required id="id_text">
-              {% if is_edit %}
-                {{ post.text }}
+            {% for field in form %}
+              <div class="form-group row my-3 p-3">
+                <label for="{{ field.id_for_label }}">
+                  {{ field.label }} 
+                  {% if field.field.required %}
+                    <span class="required text-danger">*</span>
+                  {% endif %}
+                </label>
+              {{ field }}
+              {% if field.help_text %}
+                <small id="{{ field.id_for_label }}-help" class="form-text text-muted">
+                  {{ field.help_text|safe }}
+                </small>
               {% endif %}
-            </textarea>                
-            <small id="id_text-help" class="form-text text-muted">
-              {% if is_edit %}
-                Текст редактируемого поста
-              {% else %}
-                Текст нового поста
-              {% endif %}   
-            </small>                  
-          </div>            
-          <div class="form-group row my-3 p-3">
-            <label for="id_group">
-              Группа                  
-            </label>
-            <select name="group" class="form-control" id="id_group">
-              <option value="">---------</option>
-              {% for field in group %} 
-                <option value="{{ field.id }}">{{ field.title }}</option> 
-              {% endfor %} 
-            </select>
-            <small id="id_group-help" class="form-text text-muted">
-              Группа, к которой будет относиться пост
-            </small>
-          </div>
+              </div>
+            {% endfor %}
           <div class="d-flex justify-content-end">
             <button type="submit" class="btn btn-primary">
               {% if is_edit %}
