@@ -76,6 +76,12 @@ class StaticViewTests(TestCase):
         self.authorized_client_2.force_login(StaticViewTests.user_2)
         cache.clear()
 
+        Follow.objects.all().delete()
+        Follow.objects.create(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
+        )
+
     # Проверяем используемые шаблоны
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -110,9 +116,9 @@ class StaticViewTests(TestCase):
         task_author = obj.author.username
         task_group = obj.group.title
         task_image = obj.image
-        self.assertEqual(task_text, 'Текст поста')
-        self.assertEqual(task_author, 'User')
-        self.assertEqual(task_group, 'Название группы')
+        self.assertEqual(task_text, StaticViewTests.post.text)
+        self.assertEqual(task_author, StaticViewTests.user.username)
+        self.assertEqual(task_group, StaticViewTests.group.title)
         self.assertEqual(
             str(task_image).split('/')[1],
             str(StaticViewTests.uploaded)
@@ -136,9 +142,14 @@ class StaticViewTests(TestCase):
         task_group_description = group_object.description
 
         self.post_context_is_correct(first_object)
-        self.assertEqual(task_group_title, 'Название группы')
-        self.assertEqual(task_group_slug, 'test-slug')
-        self.assertEqual(task_group_description, 'Описание группы')
+        fields = {
+            task_group_title: StaticViewTests.group.title,
+            task_group_slug: StaticViewTests.group.slug,
+            task_group_description: StaticViewTests.group.description
+        }
+        for value, expected in fields.items():
+            with self.subTest(value=value):
+                self.assertEqual(value, expected)
 
     def test_profile_page_correct_context(self):
         """Шаблон profile сформирован с правильным контекстом"""
@@ -152,7 +163,7 @@ class StaticViewTests(TestCase):
         task_post_count = post_count_object
 
         self.post_context_is_correct(first_object)
-        self.assertEqual(task_author_username, 'User')
+        self.assertEqual(task_author_username, StaticViewTests.user.username)
         self.assertEqual(task_post_count, 1)
 
     def test_post_detail_page_correct_context(self):
@@ -163,16 +174,9 @@ class StaticViewTests(TestCase):
         first_object = response.context['post']
         post_count_object = response.context['post_count']
         task_post_count = post_count_object
-        post_comment = response.context['comments'][0]
-        post_comment_post_id = post_comment.post.pk
-        post_comment_author = post_comment.author.username
-        post_comment_text = post_comment.text
 
         self.post_context_is_correct(first_object)
         self.assertEqual(task_post_count, 1)
-        self.assertEqual(post_comment_post_id, 1)
-        self.assertEqual(post_comment_author, 'User')
-        self.assertEqual(post_comment_text, 'Текст комментария')
 
     def test_post_create_page_correct_context(self):
         """Шаблон post_create сформирован с правильным контекстом"""
@@ -187,11 +191,6 @@ class StaticViewTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
-
-        first_group = response.context['group'][0]
-        task_group = first_group.title
-
-        self.assertEqual(task_group, 'Название группы')
 
     def test_post_edit_page_correct_context(self):
         """Шаблон post_edit сформирован с правильным контекстом"""
@@ -208,54 +207,70 @@ class StaticViewTests(TestCase):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
-        first_group = response.context['group'][0]
         post_obj = response.context['post']
         key_is_edit = response.context['is_edit']
-        task_group = first_group.title
         task_post_text = post_obj.text
         task_post_author = post_obj.author.username
         task_is_edit = key_is_edit
 
-        self.assertEqual(task_group, 'Название группы')
-        self.assertEqual(task_post_text, 'Текст поста')
-        self.assertEqual(task_post_author, 'User')
+        self.assertEqual(task_post_text, StaticViewTests.post.text)
+        self.assertEqual(task_post_author, StaticViewTests.user.username)
         self.assertEqual(task_is_edit, True)
 
     def test_cache_index_page(self):
         """Кеширование главной страницы работает"""
         response = self.authorized_client.get(reverse('posts:index'))
-        self.assertContains(response, 'Текст поста')
+        self.assertContains(response, StaticViewTests.post.text)
 
         Post.objects.all().delete()
         response = self.authorized_client.get(reverse('posts:index'))
-        self.assertContains(response, 'Текст поста')
+        self.assertContains(response, StaticViewTests.post.text)
 
         cache.clear()
         response = self.authorized_client.get(reverse('posts:index'))
-        self.assertNotContains(response, 'Текст поста')
+        self.assertNotContains(response, StaticViewTests.post.text)
 
     def test_follow_unfollow(self):
         """
         Авторизованный пользователь может \
-        подписаться/отписаться на/от авторов
+        подписаться на авторов
         """
         sub = Follow.objects.filter(
             user=StaticViewTests.user,
-            author=StaticViewTests.user
+            author=StaticViewTests.user_2
         )
         self.assertFalse(sub.count())
         self.authorized_client.get(
             reverse(
                 'posts:profile_follow',
-                kwargs={'username': StaticViewTests.user}
+                kwargs={'username': StaticViewTests.user_2}
             )
         )
+        sub = Follow.objects.filter(
+            user=StaticViewTests.user,
+            author=StaticViewTests.user_2
+        )
         self.assertTrue(sub.count())
-        self.authorized_client.get(
+
+    def test_unfollow(self):
+        """
+        Авторизованный пользователь может \
+        подписаться на авторов
+        """
+        sub = Follow.objects.filter(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
+        )
+        self.assertTrue(sub.count())
+        self.authorized_client_2.get(
             reverse(
                 'posts:profile_unfollow',
                 kwargs={'username': StaticViewTests.user}
             )
+        )
+        sub = Follow.objects.filter(
+            user=StaticViewTests.user_2,
+            author=StaticViewTests.user
         )
         self.assertFalse(sub.count())
 

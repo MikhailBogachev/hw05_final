@@ -36,7 +36,7 @@ class Post(models.Model):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        related_name='groups',
+        related_name='posts',
         verbose_name='Группа публикации',
         help_text='Группа, к которой будет относиться пост'
     )
@@ -93,3 +93,11 @@ class Follow(models.Model):
         related_name='following',
         verbose_name='Автор'
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique_user_author'
+            )
+        ]

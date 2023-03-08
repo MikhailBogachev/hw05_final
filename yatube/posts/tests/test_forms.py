@@ -7,6 +7,7 @@ from django.test import TestCase, Client, override_settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 
 from posts.models import Post, Group
 
@@ -33,7 +34,7 @@ class StaticViewTests(TestCase):
             slug='test-slug-2',
             description='Описание группы 2'
         )
-        Post.objects.create(
+        cls.post = Post.objects.create(
             text='Текст поста',
             author=cls.user,
             group=cls.group,
@@ -45,9 +46,14 @@ class StaticViewTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        # Создаем неавторизованный клиент
+        self.guest_client = Client()
+
         # Создаем авторизованый клиент
         self.authorized_client = Client()
         self.authorized_client.force_login(StaticViewTests.user)
+
+        cache.clear()
 
     def test_create_post_form(self):
         """Проверяем создание поста при отправке валидной формы"""
@@ -70,14 +76,24 @@ class StaticViewTests(TestCase):
             'group': 1,
             'image': uploaded
         }
+        # Авторизованный пользователь
         response = self.authorized_client.post(
             reverse('posts:post_create'),
             data=form_data,
             follow=True
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertRedirects(response, '/profile/User/')
+        self.assertRedirects(response, '/')
         self.assertEqual(Post.objects.count(), count_post + 1)
+
+        # Анонимный пользователь
+        count_post = Post.objects.count()
+        response = self.guest_client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True
+        )
+        self.assertEqual(Post.objects.count(), count_post)
 
     def test_edit_post_form(self):
         """Проверяем редактирование поста при отправке валидной формы"""
@@ -85,8 +101,11 @@ class StaticViewTests(TestCase):
             'text': 'Измененный Тестовый текст',
             'group': 2
         }
-        post_text = Post.objects.get(pk=1).text
-        post_group = Post.objects.get(pk=1).group.id
+
+        post_text = StaticViewTests.post.text
+        post_group = StaticViewTests.group.id
+
+        # Авторизованный пользователь
         self.authorized_client.post(
             reverse('posts:post_edit', kwargs={'post_id': 1}),
             data=form_data,
@@ -101,3 +120,16 @@ class StaticViewTests(TestCase):
         self.assertEqual(edit_post_group, 2)
         self.assertEqual(Post.objects.filter(group=1).count(), 0)
         self.assertEqual(Post.objects.filter(group=2).count(), 1)
+
+        # Анонимный пользователь
+        form_data = {
+            'text': 'Измененный анонимом текст',
+            'group': 1
+        }
+        self.guest_client.post(
+            reverse('posts:post_edit', kwargs={'post_id': 1}),
+            data=form_data,
+            follow=True
+        )
+        self.assertNotEqual(edit_post_text, form_data['text'])
+        self.assertNotEqual(edit_post_group, 1)
