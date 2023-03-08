@@ -83,7 +83,10 @@ class StaticViewTests(TestCase):
             follow=True
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertRedirects(response, f'/profile/{StaticViewTests.user.username}/')
+        self.assertRedirects(
+            response,
+            f'/profile/{StaticViewTests.user.username}/'
+        )
         self.assertEqual(Post.objects.count(), count_post + 1)
 
         # Анонимный пользователь
