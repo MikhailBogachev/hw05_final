@@ -15,9 +15,11 @@
         {% if post.group %}
             <li class="list-group-item">
                 Группа: {{ post.group.title }}
-                <a href="{% url 'posts:group_list' post.group.slug %}">
+            </li>
+            <li class="list-group-item">
+              <a href="{% url 'posts:group_list' post.group.slug %}">
                 все записи группы
-                </a>
+              </a>
             </li>
         {% endif %}   
         <li class="list-group-item">
@@ -66,6 +68,7 @@
               <a href="{% url 'posts:profile' comment.author.username %}">
                 {{ comment.author.username }}
               </a>
+              {{ comment.created }}
             </h5>
             <p>
               {{ comment.text }}

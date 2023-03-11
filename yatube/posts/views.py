@@ -15,7 +15,7 @@ User = get_user_model()
 def index(request):
     """Вью для отображения главной страницы с публикациями"""
     template: str = 'posts/index.html'
-    post_list = Post.objects.select_related('author').all()
+    post_list = Post.objects.select_related('author').select_related('group').all()
     page_number = request.GET.get('page')
     page_obj = paginate(post_list, page_number)
 
@@ -29,7 +29,7 @@ def group_posts(request, slug):
     """Вью для отображения страниц с постами конкретной группы"""
     template: str = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
-    post_list = group.posts.all()
+    post_list = group.posts.select_related('author').all()
     page_number = request.GET.get('page')
     page_obj = paginate(post_list, page_number)
 
